@@ -49,7 +49,7 @@ def clean_data(df):
 
 # Creates a sqlite database and saves the dataframe to a table called disaster_messages
 def save_data(df, database_filename):
-    engine = create_engine(database_filename)
+    engine = create_engine(f"sqlite:///{database_filename}")
     df.to_sql("disaster_messages", engine, index=False, if_exists="replace")
 
 

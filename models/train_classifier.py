@@ -13,11 +13,11 @@ import numpy as np
 from sqlalchemy import create_engine
 
 from sklearn.pipeline import Pipeline
-from sklearn.feature_extraction.text import TfidfVectorizer, HashingVectorizer
+from sklearn.feature_extraction.text import HashingVectorizer
 from sklearn.svm import LinearSVC
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.multioutput import MultiOutputClassifier
-from sklearn.metrics import precision_score, recall_score, accuracy_score, classification_report
+from sklearn.metrics import classification_report
 
 import re
 
@@ -44,7 +44,7 @@ def load_data(database_filepath):
     # Gets the values for the 'message' column
     X = df.message.values
     # These are the categorical columns in the dataset. Excluding the categories that have only one value.
-    category_names = [ cn for cn in df.columns[4:] if df[cn].nunique() > 1 ]
+    category_names = [cn for cn in df.columns[4:] if df[cn].nunique() > 1]
     # Our Y should be only the part of the dataframe that contains the categories and the values for each record.
     Y = df[category_names].values
 
@@ -76,7 +76,7 @@ def tokenize(text):
 
 def build_model():
     """
-    Builds the model using a pipeline.
+    Builds the model using a pipeline and passing it to GridSearchCV. Refits the model according to the best scored parameters.
 
     Parameters:
     text (str): The string of text to clean and separate into tokens.
@@ -84,33 +84,22 @@ def build_model():
     Returns:
     list: A list of cleaned tokens for the input text.
     """
-    return Pipeline([
-        ( 'vect', HashingVectorizer( tokenizer=tokenize, token_pattern=None) ), 
-        ( 'clf', MultiOutputClassifier( LinearSVC(dual='auto') ) )
-    ])
+    base_model = Pipeline(
+        [
+            ("vect", HashingVectorizer(tokenizer=tokenize, token_pattern=None)),
+            ("clf", MultiOutputClassifier(LinearSVC(dual="auto"))),
+        ]
+    )
 
-def build_model():
-    model = Pipeline([
-        ( 'vect', HashingVectorizer( tokenizer=tokenize, token_pattern=None) ), 
-        ( 'clf', MultiOutputClassifier( LinearSVC(dual='auto') ) )
-    ])
-
-    # model = Pipeline([
-    #     ( 'vect', TfidfVectorizer( tokenizer=tokenize, token_pattern=None) ),
-    #     ( 'clf', MultiOutputClassifier( RandomForestClassifier() ) )
-    # ])
-
-    # parameters = {
-    #     'clf__estimator__penalty': ['l1', 'l2'],
-    #     'vect__ngram_range': ((1, 1), (1, 2)),
-    #     'clf__estimator__max_iter': [1000, 1200, 1500]
-    # }
     parameters = {
-        'vect__ngram_range': ((1, 1), (1, 2))
+        "vect__ngram_range": ((1, 1), (1, 2)),
+        "clf__estimator__C": [0.1, 1, 10],
+        "clf__estimator__max_iter": [1000, 2000, 3000],
+        "clf__estimator__penalty": ["l1", "l2"],
     }
 
-    cv = GridSearchCV(model, param_grid=parameters)
-    return cv
+    model = GridSearchCV(base_model, param_grid=parameters, n_jobs=-1, refit=True)
+    return model
 
 
 def evaluate_model(model, X_test, Y_test, category_names):
@@ -128,42 +117,42 @@ def evaluate_model(model, X_test, Y_test, category_names):
     """
     Y_pred = model.predict(X_test)
 
-    model_score = model.score(X_test, Y_test)
-    accuracy = accuracy_score(Y_test, Y_pred)
-    precision = precision_score(Y_test, Y_pred, average='micro')
-    recall = recall_score(Y_test, Y_pred, average='micro')
-
-    print( f"\tModel score: {model_score:.2f}" )
-    print( f"\tAccy: {accuracy:.2f}" )
-    print( f"\tPrec: {precision:.2f}" )
-    print( f"\tRecl: {recall:.2f}" )
-
-def get_classification_report(model, Y_test, Y_pred):
     accuracy_scores = []
     precision_scores = []
     recall_scores = []
+    f1_scores = []
 
-    for cn in Y.columns:
-        col_idx = Y.columns.get_loc(cn)
-        report = classification_report( Y_test[:, col_idx], Y_pred[:, col_idx], zero_division=np.nan, output_dict=True )
-        col_acc = report['accuracy']
-        col_prec = report['macro avg']['precision']
-        col_recl = report['macro avg']['recall']
+    max_len = max([len(cn) for cn in category_names])
 
-        accuracy_scores.append( col_acc )
-        precision_scores.append( col_prec )
-        recall_scores.append( col_recl )
+    for col_idx, cn in enumerate(category_names):
+        report = classification_report(
+            Y_test[:, col_idx],
+            Y_pred[:, col_idx],
+            zero_division=np.nan,
+            output_dict=True,
+        )
+        col_acc = report["accuracy"]
+        col_prec = report["macro avg"]["precision"]
+        col_recl = report["macro avg"]["recall"]
+        col_f1 = report["macro avg"]["f1-score"]
 
-        # print( f"--- {col_idx} {cn} ---" )
-        # print( f"Accy: {col_acc:.2f}" )
-        # print( f"Prec: {col_prec:.2f}" )
-        # print( f"Recl: {col_recl:.2f}" )
-        # print()
+        accuracy_scores.append(col_acc)
+        precision_scores.append(col_prec)
+        recall_scores.append(col_recl)
+        f1_scores.append(col_f1)
 
-    print( "--- Overall Averaged Scores ---" )
-    print( f"Accy: {np.mean(accuracy_scores):.2f}" )
-    print( f"Prec: {np.mean(precision_scores):.2f}" )
-    print( f"Recl: {np.mean(recall_scores):.2f}" )
+        print(
+            f"\t{cn.rjust(max_len, ' ')}: Accuracy: {col_acc:.2f} Precision: {col_prec:.2f} Recall: {col_recl:.2f} F1 Score: {col_f1:.2f}"
+        )
+
+    print("\t--- Overall Averaged Scores ---")
+    print(f"\tAccuracy: {np.mean(accuracy_scores):.2f}")
+    print(f"\tPrecision: {np.mean(precision_scores):.2f}")
+    print(f"\tRecall: {np.mean(recall_scores):.2f}")
+    print(f"\tF1: {np.mean(f1_scores):.2f}")
+    print()
+
+    return model
 
 
 def save_model(model, model_filepath):

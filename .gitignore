@@ -169,3 +169,12 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# SQLite database files
+*.db
+
+# Pickle files
+*.pkl
+
+# CSV files
+*.csv
