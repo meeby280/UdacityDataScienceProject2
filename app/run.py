@@ -46,12 +46,12 @@ def index():
 
     # Counts per category for the top 10 categories
     msg_category_cols = df.columns[4:]
-    cat_count = df[msg_category_cols].sum().sort_values(ascending=False).head(10)
     msg_category_display = [ cn.replace("_", " ").capitalize() for cn in cat_count.index ]
+    cat_count = df[msg_category_cols].sum().sort_values(ascending=False).head(10)
 
     # Count of messages per length bin
-    bins = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, float('inf')]
-    labels=['0-10', '10-20', '20-30', '30-40', '40-50', '50-60', '60-70', '70-80', '80-90', '90-100', '100+']
+    bins = [0, 10, 20, 30, 40, 50, float('inf')]
+    labels=['0-9', '10-19', '20-29', '30-39', '40-49', '50+']
     word_count = df['message'].apply( lambda msg: len(tokenize(msg)) ).rename('word_count').reset_index(drop=True)
     word_count_bins = pd.cut( word_count, bins=bins, labels=labels )
     count_per_bin = word_count_bins.value_counts().sort_index().reset_index().rename(columns={'word_count': 'bins'})
