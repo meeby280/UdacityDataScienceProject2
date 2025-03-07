@@ -17,11 +17,19 @@ from sklearn.feature_extraction.text import HashingVectorizer
 from sklearn.svm import LinearSVC
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.multioutput import MultiOutputClassifier
-from sklearn.metrics import classification_report
+from sklearn.metrics import make_scorer, accuracy_score, f1_score, precision_score, recall_score
 
 import re
 
 import pickle
+
+# A dictionary of scorers to use in the GridSearchCV evaluation
+evaluation_scorers = {
+    'accuracy': make_scorer(  accuracy_score ),
+    'f1': make_scorer(  f1_score, zero_division=0, average='weighted' ),
+    'precision': make_scorer(  precision_score, zero_division=0, average='weighted' ),
+    'recall': make_scorer(  recall_score, zero_division=0, average='weighted' )
+}
 
 
 def load_data(database_filepath):
@@ -61,11 +69,13 @@ def tokenize(text):
     Returns:
     list: A list of cleaned tokens for the input text.
     """
+    # Remove any non-alphanumeric characters and change the case to lower case
     text = re.sub(r"[^a-zA-Z0-9]", " ", text.lower())
 
     tokens = word_tokenize(text)
     lemmatizer = WordNetLemmatizer()
 
+    # Tokenize the text using NLTK's WordNetLemmatizer
     clean_tokens = []
     for tok in tokens:
         clean_tok = lemmatizer.lemmatize(tok).lower().strip()
@@ -84,6 +94,7 @@ def build_model():
     Returns:
     list: A list of cleaned tokens for the input text.
     """
+    # The creating a model that uses HashingVectorizer to vectorize the text and LinearSVC as the classifier.
     base_model = Pipeline(
         [
             ("vect", HashingVectorizer(tokenizer=tokenize, token_pattern=None)),
@@ -91,6 +102,7 @@ def build_model():
         ]
     )
 
+    # Parameter set up for GridSearchCV
     parameters = {
         "vect__ngram_range": ((1, 1), (1, 2)),
         "clf__estimator__C": [0.1, 1, 10],
@@ -98,11 +110,12 @@ def build_model():
         "clf__estimator__penalty": ["l1", "l2"],
     }
 
-    model = GridSearchCV(base_model, param_grid=parameters, n_jobs=-1, refit=True)
+    # Create the model using GridSearchCV so that we can find the best parameters for the model.
+    model = GridSearchCV(base_model, param_grid=parameters, n_jobs=-1, refit='accuracy', scoring=evaluation_scorers, return_train_score=True)
     return model
 
 
-def evaluate_model(model, X_test, Y_test, category_names):
+def evaluate_model(model, X_test):
     """
     Calculates the accuracy, precision, and recall for the model based on the test data.
 
@@ -115,44 +128,22 @@ def evaluate_model(model, X_test, Y_test, category_names):
     Returns:
     list: A list of cleaned tokens for the input text.
     """
-    Y_pred = model.predict(X_test)
+    # Predict the values for the test data
+    model.predict(X_test)
 
-    accuracy_scores = []
-    precision_scores = []
-    recall_scores = []
-    f1_scores = []
+    # Get the results from the GridSearchCV evaluation
+    results = model.cv_results_
+    best_params = model.best_params_
 
-    max_len = max([len(cn) for cn in category_names])
+    # The target scorer is the first scorer in the evaluation_scorers dictionary
+    target_scorer = list(evaluation_scorers.keys())[0]
+    target_scorer_idx = model.best_index_
 
-    for col_idx, cn in enumerate(category_names):
-        report = classification_report(
-            Y_test[:, col_idx],
-            Y_pred[:, col_idx],
-            zero_division=np.nan,
-            output_dict=True,
-        )
-        col_acc = report["accuracy"]
-        col_prec = report["macro avg"]["precision"]
-        col_recl = report["macro avg"]["recall"]
-        col_f1 = report["macro avg"]["f1-score"]
-
-        accuracy_scores.append(col_acc)
-        precision_scores.append(col_prec)
-        recall_scores.append(col_recl)
-        f1_scores.append(col_f1)
-
-        print(
-            f"\t{cn.rjust(max_len, ' ')}: Accuracy: {col_acc:.2f} Precision: {col_prec:.2f} Recall: {col_recl:.2f} F1 Score: {col_f1:.2f}"
-        )
-
-    print("\t--- Overall Averaged Scores ---")
-    print(f"\tAccuracy: {np.mean(accuracy_scores):.2f}")
-    print(f"\tPrecision: {np.mean(precision_scores):.2f}")
-    print(f"\tRecall: {np.mean(recall_scores):.2f}")
-    print(f"\tF1: {np.mean(f1_scores):.2f}")
-    print()
-
-    return model
+    # Print the scores for the first scorer in the evaluation_scorers dictionary and what the parameters were for this best score
+    print(f"\tBest Parameters: {best_params}\n\tScores for best '{target_scorer}' score:")
+    for scorer in list(evaluation_scorers.keys()):
+        curr_score = results[f"mean_test_{scorer}"][target_scorer_idx] * 100
+        print(f"\t {scorer.ljust(10, ' ')}: {curr_score:.2f}%")
 
 
 def save_model(model, model_filepath):
@@ -182,7 +173,7 @@ def main():
         model.fit(X_train, Y_train)
 
         print("Evaluating model...")
-        evaluate_model(model, X_test, Y_test, category_names)
+        evaluate_model(model, X_test)
 
         print("Saving model...\n    MODEL: {}".format(model_filepath))
         save_model(model, model_filepath)

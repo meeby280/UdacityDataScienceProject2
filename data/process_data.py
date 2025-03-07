@@ -55,7 +55,7 @@ def save_data(df, database_filename):
 
 def main():
     if len(sys.argv) == 4:
-
+        # Gets the filepaths from user input
         messages_filepath, categories_filepath, database_filepath = sys.argv[1:]
 
         print(
@@ -63,12 +63,15 @@ def main():
                 messages_filepath, categories_filepath
             )
         )
+        # Loads the data from the filepaths
         df = load_data(messages_filepath, categories_filepath)
 
         print("Cleaning data...")
+        # Cleans the data
         df = clean_data(df)
 
         print("Saving data...\n    DATABASE: {}".format(database_filepath))
+        # Saves the data to a sqlite database
         save_data(df, database_filepath)
 
         print("Cleaned data saved to database!")
