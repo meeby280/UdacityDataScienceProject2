@@ -17,7 +17,14 @@ from sklearn.feature_extraction.text import HashingVectorizer
 from sklearn.svm import LinearSVC
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.multioutput import MultiOutputClassifier
-from sklearn.metrics import make_scorer, accuracy_score, f1_score, precision_score, recall_score
+from sklearn.metrics import (
+    make_scorer,
+    accuracy_score,
+    f1_score,
+    precision_score,
+    recall_score,
+    classification_report,
+)
 
 import re
 
@@ -25,10 +32,10 @@ import pickle
 
 # A dictionary of scorers to use in the GridSearchCV evaluation
 evaluation_scorers = {
-    'accuracy': make_scorer(  accuracy_score ),
-    'f1': make_scorer(  f1_score, zero_division=0, average='weighted' ),
-    'precision': make_scorer(  precision_score, zero_division=0, average='weighted' ),
-    'recall': make_scorer(  recall_score, zero_division=0, average='weighted' )
+    "accuracy": make_scorer(accuracy_score),
+    "f1": make_scorer(f1_score, zero_division=0, average="weighted"),
+    "precision": make_scorer(precision_score, zero_division=0, average="weighted"),
+    "recall": make_scorer(recall_score, zero_division=0, average="weighted"),
 }
 
 
@@ -111,11 +118,18 @@ def build_model():
     }
 
     # Create the model using GridSearchCV so that we can find the best parameters for the model.
-    model = GridSearchCV(base_model, param_grid=parameters, n_jobs=-1, refit='accuracy', scoring=evaluation_scorers, return_train_score=True)
+    model = GridSearchCV(
+        base_model,
+        param_grid=parameters,
+        n_jobs=-1,
+        refit="accuracy",
+        scoring=evaluation_scorers,
+        return_train_score=True,
+    )
     return model
 
 
-def evaluate_model(model, X_test):
+def evaluate_model(model, X_test, Y_test, category_names):
     """
     Calculates the accuracy, precision, and recall for the model based on the test data.
 
@@ -126,22 +140,17 @@ def evaluate_model(model, X_test):
     Returns:
     None
     """
-    # Predict the values for the test data
-    model.predict(X_test)
+    Y_pred = model.predict(X_test)
 
-    # Get the results from the GridSearchCV evaluation
-    results = model.cv_results_
-    best_params = model.best_params_
+    for col_idx, cn in enumerate(category_names):
+        report = classification_report(
+            Y_test[:, col_idx], Y_pred[:, col_idx], zero_division=np.nan
+        )
+        print(f"Category: {cn}")
+        print(report)
+        print()
 
-    # The target scorer is the first scorer in the evaluation_scorers dictionary
-    target_scorer = list(evaluation_scorers.keys())[0]
-    target_scorer_idx = model.best_index_
-
-    # Print the scores for the first scorer in the evaluation_scorers dictionary and what the parameters were for this best score
-    print(f"\tBest Parameters: {best_params}\n\tScores for best '{target_scorer}' score:")
-    for scorer in list(evaluation_scorers.keys()):
-        curr_score = results[f"mean_test_{scorer}"][target_scorer_idx] * 100
-        print(f"\t {scorer.ljust(10, ' ')}: {curr_score:.2f}%")
+    return model
 
 
 def save_model(model, model_filepath):
@@ -169,7 +178,7 @@ def main():
         model.fit(X_train, Y_train)
 
         print("Evaluating model...")
-        evaluate_model(model, X_test)
+        evaluate_model(model, X_test, Y_test, category_names)
 
         print("Saving model...\n    MODEL: {}".format(model_filepath))
         save_model(model, model_filepath)
