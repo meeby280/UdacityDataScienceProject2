@@ -2,8 +2,17 @@ import sys
 import pandas as pd
 from sqlalchemy import create_engine
 
-
 def load_data(messages_filepath, categories_filepath):
+    """
+    Loads the data from the filepaths and merges the two datasets.
+
+    Parameters:
+    messages_filepath (str): The path to the messages csv file.
+    categories_filepath (str): The path to the categories csv file.
+
+    Returns:
+    pandas dataframe: The merged dataframe of the messages and categories.
+    """
     # Loading the messages file
     messages = pd.read_csv(messages_filepath)
 
@@ -13,8 +22,16 @@ def load_data(messages_filepath, categories_filepath):
     # Merging the two datasets based on the id and returning the dataframe
     return pd.merge(messages, categories, on="id", how="inner")
 
-
 def clean_data(df):
+    """
+    Cleans the categories column by separating it into the separate columns. The values for each column are converted to binary values (0 or 1). The categories columns are then joined back to the main dataframe and duplicates are dropped.
+
+    Parameters:
+    df (pandas dataframe): The dataframe to clean.
+
+    Returns:
+    pandas dataframe: The cleaned dataframe.
+    """
     # Getting the categories column and splitting it into the separate categories
     categories = df["categories"].str.split(";", expand=True)
     # Getting the first row to get the individual categories
@@ -46,9 +63,16 @@ def clean_data(df):
 
     return df
 
-
-# Creates a sqlite database and saves the dataframe to a table called disaster_messages
 def save_data(df, database_filename):
+    """
+    Creates a sqlite database and saves the dataframe to a table called disaster_messages
+
+    Parameters:
+    df (pandas dataframe): The dataframe to clean.
+
+    Returns:
+    pandas dataframe: The cleaned dataframe.
+    """
     engine = create_engine(f"sqlite:///{database_filename}")
     df.to_sql("disaster_messages", engine, index=False, if_exists="replace")
 

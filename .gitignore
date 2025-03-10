@@ -178,3 +178,5 @@ cython_debug/
 
 # CSV files
 *.csv
+
+.DS_Store

@@ -89,10 +89,10 @@ def build_model():
     Builds the model using a pipeline and passing it to GridSearchCV. Refits the model according to the best scored parameters.
 
     Parameters:
-    text (str): The string of text to clean and separate into tokens.
+    None
 
     Returns:
-    list: A list of cleaned tokens for the input text.
+    GridSearchCV: The model to use for the classification.
     """
     # The creating a model that uses HashingVectorizer to vectorize the text and LinearSVC as the classifier.
     base_model = Pipeline(
@@ -122,11 +122,9 @@ def evaluate_model(model, X_test):
     Parameters:
     model: The model to evaluate.
     X_test: The test data to evaluate the model on.
-    Y_test: The true values for the test data.
-    category_names: The names of the categories in the dataset.
 
     Returns:
-    list: A list of cleaned tokens for the input text.
+    None
     """
     # Predict the values for the test data
     model.predict(X_test)
@@ -148,13 +146,11 @@ def evaluate_model(model, X_test):
 
 def save_model(model, model_filepath):
     """
-    Builds the model using a pipeline.
+    Saves the model to the specified filepath.
 
     Parameters:
-    text (str): The string of text to clean and separate into tokens.
-
-    Returns:
-    list: A list of cleaned tokens for the input text.
+    model (obj): The model to save.
+    model_filepath (str): The path to save the model to.
     """
     pickle.dump(model, open(model_filepath, "wb"))
 

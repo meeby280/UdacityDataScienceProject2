@@ -13,13 +13,13 @@
 - Builds and trains a `scikit-learn` model using `HashingVectorizer` for token vectorization and `LinearSVC` within a `MultiOutputClassifier` for classification.
 - The model is evaluated based on `GridSearchCV`'s results for model accuracy. Parameters currently used for tuning are:
     - ngram_range: Vectorizer.
-        - Testing values: ((1, 1), (1, 2))
+        - Testing values: `((1, 1), (1, 2))`
     - C: Classifier.
-        - Testing values: [0.1, 1, 10]
+        - Testing values: `[0.1, 1, 10]`
     - max_iter: Classifier.
-        - Testing values: [1000, 2000, 3000]
+        - Testing values: `[1000, 2000, 3000]`
     - penalty: Classifier.
-        - Testing values: [l1, l2]
+        - Testing values: `[l1, l2]`
 - The trained model is saved as `models/classifier.pkl`.
 ### Web App `app/run.py`
 - Flask-based web app using `plotly` for visualizing data.
@@ -32,13 +32,18 @@
 
 ## Instructions for running:
 1. Run the following commands in the project's root directory to set up the database and model.
+    - To run ETL pipeline that cleans data and stores it into the database:
 
-    - To run ETL pipeline that cleans data and stores in database
         `python data/process_data.py data/disaster_messages.csv data/disaster_categories.csv data/DisasterResponse.db`
-    - To run ML pipeline that trains classifier and saves
+
+    - To run ML pipeline that trains classifier and saves the model:
+
         `python models/train_classifier.py data/DisasterResponse.db models/classifier.pkl`
 
-2. Run the following command in the app's directory to run the web app.
-    `python run.py`
+2. Run the following command to run the web app.
+    - Change into the app's directory.
+    - Run the following command:
+
+        `python run.py`
 
 3. Go to http://0.0.0.0:3001/
